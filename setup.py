@@ -50,7 +50,7 @@ setuptools.setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
         'Topic :: Database'],
-    entry_points={'console_scripts': ['pg_lifecycle=pg_lifecycle.cli:main']},
+    entry_points={'console_scripts': ['pg_lifecycle=pg_lifecycle.cli:run']},
     include_package_data=True,
     install_requires=read_requirements('installation.txt'),
     packages=['pg_lifecycle'],

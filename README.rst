@@ -62,7 +62,10 @@ Generate Project Usage
 
 .. code-block::
 
-    usage: pg_lifecycle generate-project [-h] [-e]
+    usage: pg_lifecycle generate-project [-h] [-e] DEST
+
+    positional arguments:
+      DEST           Destination directory for the new project
 
     optional arguments:
       -h, --help     show this help message and exit
