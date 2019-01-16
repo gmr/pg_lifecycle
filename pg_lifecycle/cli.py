@@ -12,7 +12,7 @@ import sys
 
 from pg_lifecycle import build, deploy, generate, __version__
 
-LOGGER = logging.getLogger('pg_lifecycle')
+LOGGER = logging.getLogger(__name__)
 LOGGING_FORMAT = '[%(asctime)-15s] %(levelname)-8s %(message)s'
 
 
@@ -23,9 +23,8 @@ def add_actions_to_parser(parser):
 
     """
     sp = parser.add_subparsers(
-        title='pg_lifecycle Action',
-        description='The action to take when running '
-        'the pg_lifecycle application.',
+        title='Action',
+        description='The action or operation to perform',
         dest='action',
         required=True,
         metavar='ACTION')
@@ -35,6 +34,13 @@ def add_actions_to_parser(parser):
         '--extract',
         action='store_true',
         help='Extract schema from an existing database')
+    gen.add_argument('--gitkeep',
+                     action='store_true',
+                     help='Create a .gitkeep file in empty directories')
+    gen.add_argument(
+        '--force',
+        action='store_true',
+        help='Write to destination path even if it already exists')
     gen.add_argument(
         'dest',
         nargs=1,
