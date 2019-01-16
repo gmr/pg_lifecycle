@@ -42,7 +42,7 @@ class Generate:
         self.dump_reader = directory.Reader(self.dump_path)
         self._generate_ddl()
 
-        # self._cleanup_dump()
+        self._cleanup_dump()
         LOGGER.info('DDL project generated in %s after processing %i objects',
                     self.args.dest[0], len(self.included))
 
