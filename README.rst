@@ -49,8 +49,8 @@ Usage
       -v, --verbose         Increase output verbosity (default: False)
       --debug               Extra verbose debug logging (default: False)
 
-    pg_lifecycle Action:
-      The action to take when running the pg_lifecycle application.
+    Action:
+      The action or operation to perform
 
       ACTION
         generate-project    Generate a project
@@ -70,6 +70,8 @@ Generate Project Usage
     optional arguments:
       -h, --help     show this help message and exit
       -e, --extract  Extract schema from an existing database
+      --force        Write to destination path even if it already exists
+      --gitkeep      Create a .gitkeep file in empty directories
 
 Build Usage
 ~~~~~~~~~~~

@@ -34,13 +34,14 @@ def add_actions_to_parser(parser):
         '--extract',
         action='store_true',
         help='Extract schema from an existing database')
-    gen.add_argument('--gitkeep',
-                     action='store_true',
-                     help='Create a .gitkeep file in empty directories')
     gen.add_argument(
         '--force',
         action='store_true',
         help='Write to destination path even if it already exists')
+    gen.add_argument(
+        '--gitkeep',
+        action='store_true',
+        help='Create a .gitkeep file in empty directories')
     gen.add_argument(
         'dest',
         nargs=1,
