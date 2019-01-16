@@ -1,2 +1,3 @@
-pgdumplib
+pgdumplib>=0.2.0
 psycopg2
+toposort
