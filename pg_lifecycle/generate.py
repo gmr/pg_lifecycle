@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 import toposort
 
-from pgdumplib import directory
+from pgdumplib import directory, toc
 
 from pg_lifecycle import common
 
@@ -29,12 +29,13 @@ class Generate:
         self.dump_reader = None
         self.included = set({})
         self.project_path = path.abspath(args.dest[0])
+        self.public_id = None
 
     def run(self):
         """Implement as core logic for generating the project"""
         if path.exists(self.project_path) and not self.args.force:
             common.exit_application(
-                '{} already exists'.format(self.project_path), 2)
+                '{} already exists'.format(self.project_path), 3)
         LOGGER.info('Generating project in %s', self.project_path)
         self._dump_database()
         self._create_directories()
@@ -42,7 +43,7 @@ class Generate:
         self.dump_reader = directory.Reader(self.dump_path)
         self._generate_ddl()
 
-        self._cleanup_dump()
+        # self._cleanup_dump()
         LOGGER.info('DDL project generated in %s after processing %i objects',
                     self.args.dest[0], len(self.included))
 
@@ -51,14 +52,12 @@ class Generate:
         os.makedirs(self.project_path, exist_ok=self.args.force)
         for value in common.PATHS.values():
             subdir_path = path.join(self.project_path, value)
-            LOGGER.debug('Creating %s', subdir_path)
             try:
                 os.makedirs(subdir_path, exist_ok=self.args.force)
             except FileExistsError:
                 pass
             if self.args.gitkeep:
                 gitkeep_path = path.join(subdir_path, '.gitkeep')
-                LOGGER.debug('Creating %s', gitkeep_path)
                 open(gitkeep_path, 'w').close()
 
     def _cleanup_dump(self):
@@ -110,7 +109,8 @@ class Generate:
         LOGGER.debug('Dump command: %r', ' '.join(command))
         return command
 
-    def _function_filename(self, tag, filenames):
+    @staticmethod
+    def _function_filename(tag, filenames):
         """Create a filename for a function file, using an auto-incrementing
         value for duplicate functions with different parameters.
 
@@ -138,17 +138,26 @@ class Generate:
                     self.dump_reader.server_version)
 
         files = list([])
-        for obj_type in [common.CAST,
+        for obj_type in [common.AGGREGATE,
+                         common.CAST,
+                         common.COLLATION,
+                         common.CONVERSION,
                          common.DOMAIN,
                          common.EXTENSION,
-                         common.FDW,
+                         common.FOREIGN_DATA_WRAPPER,
                          common.FUNCTION,
+                         common.MATERIALIZED_VIEW,
                          common.PL,
+                         common.PROCEDURE,
+                         common.PUBLICATION,
                          common.RULE,
                          common.SCHEMA,
                          common.SEQUENCE,
                          common.SERVER,
+                         common.SUBSCRIPTION,
                          common.TABLE,
+                         common.TEXT_SEARCH_CONFIGURATION,
+                         common.TEXT_SEARCH_DICTIONARY,
                          common.TYPE,
                          common.TRIGGER,
                          common.VIEW]:
@@ -165,6 +174,8 @@ class Generate:
 
         if self.args.gitkeep:
             self._remove_unneeded_gitkeeps()
+        if self.args.remove_empty_dirs:
+            self._remove_empty_directories()
 
         for entry in self.dump_reader.toc.entries:
             if entry.dump_id not in self.included:
@@ -197,29 +208,33 @@ class Generate:
                         common.PATHS[obj_type], entry.namespace,
                         base_name)
                 filenames.add(base_name)
-                # LOGGER.debug('Adding %i - %s', entry.dump_id, filename)
                 ddl[entry.dump_id] = {
                     'filename': filename,
                     'dependencies': entry.dependencies,
                     'includes': [],
                     'entry': entry
                 }
-            elif entry.desc == common.ACL:
-                self._maybe_add_entity(ddl, entry, common.ACL)
-            elif entry.desc == common.COMMENT:
-                self._maybe_add_entity(ddl, entry, common.COMMENT)
-            elif entry.desc == common.CONSTRAINT:
-                self._maybe_add_entity(ddl, entry, common.CONSTRAINT)
-            elif entry.desc == common.DEFAULT:
-                self._maybe_add_entity(ddl, entry, common.DEFAULT)
-            elif entry.desc == common.FK_CONSTRAINT:
-                self._maybe_add_entity(ddl, entry, common.FK_CONSTRAINT)
-            elif entry.desc == common.INDEX:
-                self._maybe_add_entity(ddl, entry, common.INDEX)
-            elif entry.desc == common.SEQUENCE_OWNED_BY:
-                self._maybe_add_entity(ddl, entry, common.SEQUENCE_OWNED_BY)
-            elif entry.desc == common.USER_MAPPING:
-                self._maybe_add_entity(ddl, entry, common.USER_MAPPING)
+            elif entry.desc in [common.ACL, common.COMMENT] and \
+                    entry.tag == 'SCHEMA public':
+                # Special case for public schema, create not included in dump
+                if entry.dependencies[0] not in self.included:
+                    self.included.add(entry.dependencies[0])
+                    ddl[entry.dependencies[0]] = {
+                        'filename': path.join(
+                            common.PATHS[common.SCHEMA], 'public.sql'),
+                        'dependencies': [],
+                        'includes': [],
+                        'entry': toc.Entry(
+                            entry.dependencies[0], None, None, None, entry.tag,
+                            common.SCHEMA, None, '', None, None, None, None,
+                            None, None, [])
+                    }
+                self._maybe_add_entity(ddl, entry, entry.desc)
+            else:
+                for child_type in common.CHILD_OBJ_TYPES:
+                    if entry.desc == child_type:
+                        self._maybe_add_entity(ddl, entry, child_type)
+                        break
         return self._generate_files(ddl)
 
     def _generate_directives(self):
@@ -295,38 +310,16 @@ class Generate:
                 os.makedirs(path.dirname(file_path))
             if path.exists(file_path):
                 raise ValueError('Path Already Exists: {}'.format(file_path))
-
-            LOGGER.debug('Generating %s', file_path)
             with open(file_path, 'w') as handle:
                 tag = obj['entry'].tag if not obj['entry'].namespace \
                     else '{}.{}'.format(
                         obj['entry'].namespace, obj['entry'].tag)
                 handle.write('-- DDL for {}\n\n'.format(tag))
                 handle.write(obj['entry'].defn)
-                if obj.get(common.DEFAULT):
-                    handle.write('\n-- Defaults for {}\n\n{}'.format(
-                        tag, ''.join(obj[common.DEFAULT])))
-                if obj.get(common.COMMENT):
-                    handle.write('\n-- Comments for {}\n\n{}'.format(
-                        tag, ''.join(obj[common.COMMENT])))
-                if obj.get(common.ACL):
-                    handle.write('\n-- ACLs for {}\n\n{}'.format(
-                        tag, ''.join(obj[common.ACL])))
-                if obj.get(common.CONSTRAINT):
-                    handle.write('\n-- Constraints for {}\n\n{}'.format(
-                        tag, ''.join(obj[common.CONSTRAINT])))
-                if obj.get(common.FK_CONSTRAINT):
-                    handle.write('\n-- Foreign Keys for {}\n\n{}'.format(
-                        tag, ''.join(obj[common.FK_CONSTRAINT])))
-                if obj.get(common.INDEX):
-                    handle.write('\n-- Indexes for {}\n\n{}'.format(
-                        tag, ''.join(obj[common.INDEX])))
-                if obj.get(common.SEQUENCE_OWNED_BY):
-                    handle.write('\n-- Ownership for {}\n\n{}'.format(
-                        tag, ''.join(obj[common.SEQUENCE_OWNED_BY])))
-                if obj.get(common.USER_MAPPING):
-                    handle.write('\n-- User Mapping for {}\n\n{}'.format(
-                        tag, ''.join(obj[common.USER_MAPPING])))
+                for child_type in common.CHILD_OBJ_TYPES:
+                    if obj.get(child_type):
+                        handle.write('\n-- {}s for {}\n\n{}'.format(
+                            child_type, tag, ''.join(obj[child_type])))
         return files
 
     def _generate_manifest(self, files):
@@ -356,6 +349,14 @@ class Generate:
                         if dependency not in entry.dependencies and \
                                 dependency != parent:
                             ddl[parent]['dependencies'].append(dependency)
+
+    def _remove_empty_directories(self):
+        """Remove any empty directories"""
+        for subdir in common.PATHS.values():
+            dir_path = path.join(self.project_path, subdir)
+            for root, dirs, files in os.walk(dir_path):
+                if not len(dirs) and not len(files):
+                    os.rmdir(root)
 
     def _remove_unneeded_gitkeeps(self):
         """Remove any .gitkeep files in directories with subdirectories or

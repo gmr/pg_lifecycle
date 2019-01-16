@@ -10,7 +10,7 @@ from os import path
 import pwd
 import sys
 
-from pg_lifecycle import build, deploy, generate, __version__
+from pg_lifecycle import build, common, deploy, generate, __version__
 
 LOGGER = logging.getLogger(__name__)
 LOGGING_FORMAT = '[%(asctime)-15s] %(levelname)-8s %(message)s'
@@ -42,6 +42,11 @@ def add_actions_to_parser(parser):
         '--gitkeep',
         action='store_true',
         help='Create a .gitkeep file in empty directories')
+    gen.add_argument(
+        '-r',
+        '--remove-empty-dirs',
+        action='store_true',
+        help='Remove empty directories after generation')
     gen.add_argument(
         'dest',
         nargs=1,
@@ -231,7 +236,9 @@ def run():
     elif args.action == 'deploy':
         deploy.Deploy(args).run()
     elif args.action == 'generate-project':
+        if args.gitkeep and args.remove_empty_dirs:
+            common.exit_application(
+                'Can not specify --gitkeep and --remove-empty-dirs', 2)
         generate.Generate(args).run()
     else:
-        sys.stderr.write('ERROR: Invalid action specified')
-        sys.exit(1)
+        common.exit_application('Invalid action specified', 1)
