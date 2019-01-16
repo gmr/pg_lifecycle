@@ -43,8 +43,7 @@ def add_actions_to_parser(parser):
         action='store_true',
         help='Create a .gitkeep file in empty directories')
     gen.add_argument(
-        '-r',
-        '--remove-empty-dirs',
+        '--remove-empty',
         action='store_true',
         help='Remove empty directories after generation')
     gen.add_argument(

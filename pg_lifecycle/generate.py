@@ -174,7 +174,7 @@ class Generate:
 
         if self.args.gitkeep:
             self._remove_unneeded_gitkeeps()
-        if self.args.remove_empty_dirs:
+        if self.args.remove_empty:
             self._remove_empty_directories()
 
         for entry in self.dump_reader.toc.entries:

@@ -72,6 +72,7 @@ Generate Project Usage
       -e, --extract  Extract schema from an existing database
       --force        Write to destination path even if it already exists
       --gitkeep      Create a .gitkeep file in empty directories
+      --remove-empty Remove empty directories after generation
 
 Build Usage
 ~~~~~~~~~~~
