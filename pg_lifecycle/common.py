@@ -1,6 +1,11 @@
 # coding=utf-8
-import os
-from os import path
+"""Common constants and shared methods"""
+import logging
+import sys
+
+LOGGER = logging.getLogger(__name__)
+
+MANIFEST = 'MANIFEST.pgl'
 
 ALTER = 'ALTER'
 COMMENT = 'COMMENT'
@@ -10,28 +15,53 @@ GRANT = 'GRANT'
 REVOKE = 'REVOKE'
 SET = 'SET'
 
+ACL = 'ACL'
+CAST = 'CAST'
 COLUMN = 'COLUMN'
 CONSTRAINT = 'CONSTRAINT'
+DATABASE = 'DATABASE'
+DEFAULT = 'DEFAULT'
+DIRECTIVE = 'DIRECTIVE'
 DOMAIN = 'DOMAIN'
+ENCODING = 'ENCODING'
+EXTENSION = 'EXTENSION'
+FDW = 'FOREIGN DATA WRAPPER'
+FK_CONSTRAINT = 'FK CONSTRAINT'
 FUNCTION = 'FUNCTION'
 INDEX = 'INDEX'
+OPERATOR = 'OPERATOR'
+PRE_DATA = 'Pre-Data'
+PL = 'PROCEDURAL LANGUAGE'
 ROLE = 'ROLE'
 RULE = 'RULE'
+SEARCHPATH = 'SEARCHPATH'
+SEQUENCE_OWNED_BY = 'SEQUENCE OWNED BY'
 SCHEMA = 'SCHEMA'
 SEQUENCE = 'SEQUENCE'
+SERVER = 'SERVER'
+SHELL_TYPE = 'SHELL TYPE'
+STDSTRINGS = 'STDSTRINGS'
 TABLE = 'TABLE'
 TRIGGER = 'TRIGGER'
 TYPE = 'TYPE'
+USER_MAPPING = 'USER MAPPING'
 VIEW = 'VIEW'
 
 PATHS = {
+    CAST: 'casts',
     CONSTRAINT: 'constraints',
     DOMAIN: 'domains',
+    EXTENSION: 'extensions',
+    FDW: 'fdws',
     FUNCTION: 'functions',
-    INDEX: 'indexes',
+    OPERATOR: 'operators',
+    PL: 'extensions',
+    ROLE: 'roles',
     RULE: 'rules',
     SCHEMA: 'schemata',
     SEQUENCE: 'sequences',
+    SERVER: 'servers',
+    SHELL_TYPE: 'types',
     TABLE: 'tables',
     TRIGGER: 'triggers',
     TYPE: 'types',
@@ -39,12 +69,15 @@ PATHS = {
 }
 
 
-def ensure_directory(filename):
-    """Ensures that the directory exists for the specified file.
+def exit_application(message=None, code=0):
+    """Exit the application displaying the message to either INFO or ERROR
+    based upon the exist code.
 
-    :param str filename: The file to ensure the directory exists for
+    :param str message: The exit message
+    :param int code: The exit code (default: 0)
 
     """
-    dir_path = path.dirname(filename)
-    if not path.exists(dir_path):
-        os.makedirs(dir_path)
+    if message:
+        log_method = LOGGER.info if not code else LOGGER.error
+        log_method(message.strip())
+    sys.exit(code)
